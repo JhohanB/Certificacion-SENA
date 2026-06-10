@@ -91,7 +91,7 @@ const PreviewFirmasSolicitud = memo(function PreviewFirmasSolicitud({ solicitud,
         if (!archivoUrl.startsWith('/')) {
           archivoUrl = '/' + archivoUrl
         }
-        const fullUrl = import.meta.env.DEV ? archivoUrl : `http://localhost:8000${archivoUrl}`
+        const fullUrl = import.meta.env.DEV ? archivoUrl : `https://certificacion-sena.onrender.com${archivoUrl}`
 
         const response = await fetch(fullUrl, { credentials: 'omit' })
         if (!response.ok) {
