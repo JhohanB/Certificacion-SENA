@@ -553,7 +553,8 @@ def descargar_pdf(
     solicitud_id: int,
     db: Session = Depends(get_db),
     current_user: dict = Depends(check_permission("solicitudes", "descargar")),
-    background_tasks: BackgroundTasks = Depends()
+    *,
+    background_tasks: BackgroundTasks
 ) -> FileResponse:
     import urllib.parse
     from fastapi.responses import FileResponse
