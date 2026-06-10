@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/uploads': {
-        target: 'http://localhost:8000',
+        target: 'https://certificacion-sena.onrender.com',
         changeOrigin: true,
         secure: false,
       },
