@@ -45,7 +45,7 @@ app = FastAPI(
 # -------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://sigecasa.onrender.com"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
