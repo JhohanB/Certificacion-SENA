@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: list = ["pdf", "jpg", "jpeg", "png"]
 
     # -------------------------------------------------------
+    # Supabase Storage
+    # -------------------------------------------------------
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_STORAGE_BUCKET: str = os.getenv("SUPABASE_STORAGE_BUCKET", "uploads")
+
+    # -------------------------------------------------------
     # Correo electrónico
     # -------------------------------------------------------
     MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")

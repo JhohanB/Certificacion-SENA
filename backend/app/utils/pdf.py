@@ -2,10 +2,13 @@ import hashlib
 import io
 import logging
 import os
+import tempfile
 from datetime import datetime, timezone, timedelta
 from pypdf import PdfWriter, PdfReader
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
+
+from app.utils.storage import ensure_local_file, is_remote_url
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +33,20 @@ def generar_pdf_consolidado(solicitud_id: int, documentos: list, upload_dir: str
 
     for doc in documentos:
         ruta = doc["archivo_url"]
-        if not os.path.exists(ruta):
-            raise FileNotFoundError(f"Archivo no encontrado: {ruta}")
-
+        local_path, cleanup = ensure_local_file(ruta)
         try:
-            reader = PdfReader(ruta)
+            if not os.path.exists(local_path):
+                raise FileNotFoundError(f"Archivo no encontrado: {ruta}")
+
+            reader = PdfReader(local_path)
             for page in reader.pages:
                 writer.add_page(page)
         except Exception as e:
             logger.error(f"Error al leer PDF {ruta}: {e}")
             raise Exception(f"Error al procesar el archivo: {ruta}")
+        finally:
+            if cleanup and os.path.exists(local_path):
+                os.remove(local_path)
 
     # Guardar PDF consolidado
     carpeta = f"{upload_dir}/{solicitud_id}"
@@ -112,8 +119,12 @@ def incrustar_firmas_en_pdf(
             for coord in firmas_en_pagina:
                 firma = firmas_por_rol[coord["rol_id"]]
                 firma_url = firma.get("firma_url")
+                if not firma_url:
+                    logger.warning(f"Firma no encontrada para rol {coord['rol_id']}: {firma_url}")
+                    continue
 
-                if not firma_url or not os.path.exists(firma_url):
+                local_firma_path, cleanup_firma = ensure_local_file(firma_url)
+                if not os.path.exists(local_firma_path):
                     logger.warning(f"Firma no encontrada para rol {coord['rol_id']}: {firma_url}")
                     continue
 
@@ -128,7 +139,7 @@ def incrustar_firmas_en_pdf(
                 try:
                     # Ajustar proporciones sin distorsionar la imagen
                     from PIL import Image as PILImage
-                    pil_img = PILImage.open(firma_url)
+                    pil_img = PILImage.open(local_firma_path)
                     img_w, img_h = pil_img.size
 
                     # Calcular escala manteniendo proporción
@@ -145,7 +156,7 @@ def incrustar_firmas_en_pdf(
                     x_centrado = x + (ancho - ancho_real) / 2
                     y_centrado = y + (alto - alto_real) / 2
 
-                    img = ImageReader(firma_url)
+                    img = ImageReader(local_firma_path)
                     c.drawImage(img, x_centrado, y_centrado, width=ancho_real, height=alto_real, mask="auto")
 
                     # Escribir nombre del funcionario en el campo de nombres
@@ -164,6 +175,9 @@ def incrustar_firmas_en_pdf(
                 except Exception as e:
                     logger.error(f"Error al incrustar firma rol {coord['rol_id']}: {e}")
                     raise Exception(f"Error al procesar la firma de {firma.get('nombre_completo', 'desconocido')}")
+                finally:
+                    if cleanup_firma and os.path.exists(local_firma_path):
+                        os.remove(local_firma_path)
 
             c.save()
             packet.seek(0)

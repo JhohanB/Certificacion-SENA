@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Form, Request, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel as PydanticBaseModel
 
+from app.utils.storage import upload_bytes_to_supabase
+
 from core.database import get_db
 from core.config import settings
 from app.schemas.solicitudes import (
@@ -121,15 +123,11 @@ async def crear_solicitud(
         db, solicitud_id, None, "PENDIENTE_REVISION"
     )
 
-    carpeta = f"{settings.UPLOAD_DIR}/{solicitud_id}"
-    os.makedirs(carpeta, exist_ok=True)
-
     for documento_id, (contenido, doc) in archivos_validados.items():
         nombre_archivo = f"doc_{documento_id}_v1.pdf"
-        ruta = f"{carpeta}/{nombre_archivo}"
-        with open(ruta, "wb") as f:
-            f.write(contenido)
-        crud_solicitudes.create_documento_solicitud(db, solicitud_id, documento_id, ruta)
+        object_path = f"documentos/{solicitud_id}/{nombre_archivo}"
+        archivo_url = upload_bytes_to_supabase(object_path, contenido, content_type="application/pdf")
+        crud_solicitudes.create_documento_solicitud(db, solicitud_id, documento_id, archivo_url)
 
     tipo_nombre = next(
         (d["nombre"] for d in crud_solicitudes.get_tipo_programas(db) if d["id"] == tipo_programa_id), ""
@@ -511,8 +509,6 @@ async def corregir_datos_aprendiz(
 
     # Procesar documentos no aprobados
     docs_activos = solicitud.get("documentos", [])
-    carpeta = f"{settings.UPLOAD_DIR}/{solicitud_id}"
-    os.makedirs(carpeta, exist_ok=True)
 
     for doc in docs_activos:
         if doc.get("estado_documento") == "APROBADO":
@@ -532,10 +528,9 @@ async def corregir_datos_aprendiz(
 
         version = doc.get("version", 1) + 1
         nombre_archivo = f"doc_{doc['documento_id']}_v{version}.pdf"
-        ruta = f"{carpeta}/{nombre_archivo}"
-        with open(ruta, "wb") as f:
-            f.write(contenido)
-        reemplazar_documento(db, solicitud_id, doc["documento_id"], ruta)
+        object_path = f"documentos/{solicitud_id}/{nombre_archivo}"
+        archivo_url = upload_bytes_to_supabase(object_path, contenido, content_type="application/pdf")
+        reemplazar_documento(db, solicitud_id, doc["documento_id"], archivo_url)
 
     if datos_dict:
         campos_todos = list(datos_dict.keys())
@@ -649,8 +644,15 @@ async def confirmar_revision(
         # Todo aprobado — generar PDF y pasar a PENDIENTE_FIRMAS
         documentos = crud_solicitudes.get_documentos_by_solicitud(db, solicitud_id)
         try:
-            pdf_url, pdf_hash = generar_pdf_consolidado(
+            pdf_local_path, pdf_hash = generar_pdf_consolidado(
                 solicitud_id, documentos, settings.UPLOAD_DIR
+            )
+            with open(pdf_local_path, "rb") as f:
+                pdf_bytes = f.read()
+            pdf_url = upload_bytes_to_supabase(
+                f"documentos/{solicitud_id}/{os.path.basename(pdf_local_path)}",
+                pdf_bytes,
+                content_type="application/pdf"
             )
             update_pdf_consolidado(db, solicitud_id, pdf_url, pdf_hash)
         except Exception as e:
@@ -677,8 +679,15 @@ async def confirmar_revision(
 
             # Regenerar PDF con documentos corregidos
             try:
-                pdf_url, pdf_hash = generar_pdf_consolidado(
+                pdf_local_path, pdf_hash = generar_pdf_consolidado(
                     solicitud_id, documentos, settings.UPLOAD_DIR
+                )
+                with open(pdf_local_path, "rb") as f:
+                    pdf_bytes = f.read()
+                pdf_url = upload_bytes_to_supabase(
+                    f"documentos/{solicitud_id}/{os.path.basename(pdf_local_path)}",
+                    pdf_bytes,
+                    content_type="application/pdf"
                 )
                 update_pdf_consolidado(db, solicitud_id, pdf_url, pdf_hash)
             except Exception as e:

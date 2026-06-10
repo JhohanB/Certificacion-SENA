@@ -12,6 +12,7 @@ from app.schemas.usuarios import (
     UsuarioCreate, UsuarioUpdate, UsuarioOut,
     UsuarioListOut, AsignarRol
 )
+from app.utils.storage import upload_bytes_to_supabase
 from app.crud import usuarios as crud_usuarios
 from app.router.dependencies import check_permission, get_current_user, get_current_user_primer_login, require_admin
 
@@ -270,19 +271,8 @@ def subir_firma(
             detail="Solo se permiten imágenes JPG o PNG"
         )
 
-    # Eliminar firma anterior si existe
-    os.makedirs(f"{settings.UPLOAD_DIR}/firmas", exist_ok=True)
-    carpeta_firmas = f"{settings.UPLOAD_DIR}/firmas"
-    for ext in ["png", "jpg", "jpeg"]:
-        ruta_anterior = f"{carpeta_firmas}/firma_{usuario_id}.{ext}"
-        if os.path.exists(ruta_anterior):
-            os.remove(ruta_anterior)
-            logger.info(f"Firma anterior eliminada: {ruta_anterior}")
-
-    nombre_archivo = f"firma_{usuario_id}.png"  # Siempre PNG para soportar transparencia
-    ruta = f"{carpeta_firmas}/{nombre_archivo}"
-
     contenido = archivo.file.read()
+    firma_bytes = contenido
 
     try:
         from PIL import Image, ImageChops
@@ -312,21 +302,28 @@ def subir_firma(
                 nuevos_datos.append(pixel)
         img.putdata(nuevos_datos)
 
-        img.save(ruta, "PNG")
+        output_buffer = io.BytesIO()
+        img.save(output_buffer, "PNG")
+        firma_bytes = output_buffer.getvalue()
         logger.info(f"Firma procesada con fondo transparente para usuario {usuario_id}")
 
     except Exception as e:
         logger.warning(f"No se pudo procesar la imagen, guardando original: {e}")
-        with open(ruta, "wb") as f:
-            f.write(contenido)
+        firma_bytes = contenido
 
-    crud_usuarios.update_firma_url(db, usuario_id, ruta)
+    firma_url = upload_bytes_to_supabase(
+        f"firmas/firma_{usuario_id}.png",
+        firma_bytes,
+        content_type="image/png"
+    )
+
+    crud_usuarios.update_firma_url(db, usuario_id, firma_url)
 
     from app.utils.auditoria import registrar, FIRMA_REGISTRADA
     registrar(db, FIRMA_REGISTRADA, "usuarios", usuario_id,
               f"Firma registrada para usuario {usuario_id}", current_user["id"])
 
-    return {"message": "Firma registrada correctamente", "firma_url": ruta}
+    return {"message": "Firma registrada correctamente", "firma_url": firma_url}
 
 
 @router.post("/{usuario_id}/roles")

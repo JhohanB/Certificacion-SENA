@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.config import settings
+from app.utils.storage import upload_bytes_to_supabase
 from app.schemas.plantillas import (
     CoordenadaFirmaCreate, PlantillaOut, PlantillaListOut
 )
@@ -84,14 +85,10 @@ async def subir_plantilla(
             detail="El archivo no es un PDF válido"
         )
 
-    carpeta = f"{settings.UPLOAD_DIR}/plantillas"
-    os.makedirs(carpeta, exist_ok=True)
-    ruta = f"{carpeta}/plantilla_v{version}.pdf"
+    plantilla_path = f"plantillas/plantilla_v{version}.pdf"
+    archivo_url = upload_bytes_to_supabase(plantilla_path, contenido, content_type="application/pdf")
 
-    with open(ruta, "wb") as f:
-        f.write(contenido)
-
-    plantilla_id = crud_plantillas.create_plantilla(db, version, ruta, current_user["id"])
+    plantilla_id = crud_plantillas.create_plantilla(db, version, archivo_url, current_user["id"])
 
     from app.utils.auditoria import registrar, PLANTILLA_SUBIDA
     registrar(db, PLANTILLA_SUBIDA, "plantillas_formato", plantilla_id,

@@ -23,6 +23,7 @@ from app.router.dependencies import check_permission
 from app.utils.email_service import (
     enviar_certificacion_completada,
 )
+from app.utils.storage import download_to_temp, is_remote_url, upload_bytes_to_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -203,19 +204,11 @@ async def corregir_documentos(
         await archivo.seek(0)
 
     # Guardar documentos corregidos
-    carpeta = f"{settings.UPLOAD_DIR}/{solicitud_id}"
-    os.makedirs(carpeta, exist_ok=True)
-
     for archivo, doc in zip(archivos, docs_observados):
         contenido = await archivo.read()
         nombre_archivo = f"doc_{doc['documento_id']}_v{doc['version'] + 1}.pdf"
-        ruta = f"{carpeta}/{nombre_archivo}"
-
-        with open(ruta, "wb") as f:
-            f.write(contenido)
-
-        # Guardar la URL relativa con barra inicial para que sea /uploads/...
-        archivo_url = f"/{ruta}"
+        object_path = f"documentos/{solicitud_id}/{nombre_archivo}"
+        archivo_url = upload_bytes_to_supabase(object_path, contenido, content_type="application/pdf")
         crud_docs.reemplazar_documento(db, solicitud_id, doc["documento_id"], archivo_url)
 
     # Marcar token como usado y cambiar estado
@@ -424,20 +417,25 @@ async def firmar_solicitud(
                 raise Exception("La plantilla no tiene coordenadas de firma configuradas")
 
             # Generar PDF con firmas incrustadas
-            carpeta_pdf = os.path.dirname(pdf_original)
-            # Usar UTC-5 (Colombia) con timezone offset
-            tz_colombia = timezone(timedelta(hours=-5))
-            timestamp_firmado = datetime.now(tz_colombia).strftime("%Y%m%d_%H%M%S")
-            ruta_firmado = f"{carpeta_pdf}/consolidado_firmado_{timestamp_firmado}.pdf"
+            temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            temp_pdf.close()
             ruta_final, hash_final = incrustar_firmas_en_pdf(
                 ruta_pdf_original=pdf_original,
                 firmas=list(firmas_completas),
                 coordenadas=list(coordenadas),
-                ruta_salida=ruta_firmado
+                ruta_salida=temp_pdf.name
             )
 
-            # Actualizar URL y hash del PDF consolidado
-            crud_docs.update_pdf_consolidado(db, solicitud_id, ruta_final, hash_final)
+            with open(ruta_final, "rb") as f:
+                pdf_bytes = f.read()
+
+            pdf_url = upload_bytes_to_supabase(
+                f"documentos/{solicitud_id}/{os.path.basename(ruta_final)}",
+                pdf_bytes,
+                content_type="application/pdf"
+            )
+
+            crud_docs.update_pdf_consolidado(db, solicitud_id, pdf_url, hash_final)
             logger.info(f"Firmas incrustadas en PDF de solicitud {solicitud_id}")
 
         except Exception as e:
@@ -554,7 +552,8 @@ async def rechazar_firma(
 def descargar_pdf(
     solicitud_id: int,
     db: Session = Depends(get_db),
-    current_user: dict = Depends(check_permission("solicitudes", "descargar"))
+    current_user: dict = Depends(check_permission("solicitudes", "descargar")),
+    background_tasks: BackgroundTasks = Depends()
 ):
     import urllib.parse
     from fastapi.responses import FileResponse
@@ -567,18 +566,22 @@ def descargar_pdf(
     if not pdf_url:
         raise HTTPException(status_code=404, detail="Esta solicitud aún no tiene PDF generado")
 
-    if not os.path.exists(pdf_url):
-        raise HTTPException(status_code=404, detail="El archivo PDF no fue encontrado en el servidor")
+    if is_remote_url(pdf_url) or not os.path.exists(pdf_url):
+        ruta_local = download_to_temp(pdf_url)
+        background_tasks.add_task(os.remove, ruta_local)
+    else:
+        ruta_local = pdf_url
 
     nombre_archivo = f"PAZ Y SALVO {solicitud['numero_documento']} {solicitud['nombre_aprendiz']}.pdf"
     nombre_encoded = urllib.parse.quote(nombre_archivo)
 
     return FileResponse(
-        path=pdf_url,
+        path=ruta_local,
         media_type="application/pdf",
         headers={
             "Content-Disposition": f"attachment; filename*=UTF-8''{nombre_encoded}"
-        }
+        },
+        background=background_tasks
     )
 
 
@@ -616,18 +619,32 @@ def descargar_certificados_zip(
     temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
     temp_zip.close()
     archivos_agregados = 0
+    temp_files = []
 
     with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zf:
         for fila in resultados:
             ruta_pdf = fila['pdf_consolidado_url']
-            if not ruta_pdf or not os.path.exists(ruta_pdf):
+            if not ruta_pdf:
                 continue
+
+            if is_remote_url(ruta_pdf) or not os.path.exists(ruta_pdf):
+                try:
+                    ruta_local = download_to_temp(ruta_pdf)
+                    temp_files.append(ruta_local)
+                except Exception:
+                    continue
+            else:
+                ruta_local = ruta_pdf
+
             nombre_pdf = f"Certificado {fila['numero_documento']} {fila['nombre_aprendiz']}.pdf"
-            zf.write(ruta_pdf, arcname=nombre_pdf)
+            zf.write(ruta_local, arcname=nombre_pdf)
             archivos_agregados += 1
 
     if archivos_agregados == 0:
         os.remove(temp_zip.name)
+        for tmp_path in temp_files:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
         raise HTTPException(status_code=404, detail="No se encontraron archivos PDF certificados para descargar")
 
     nombre_zip = f"certificados_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
@@ -635,6 +652,8 @@ def descargar_certificados_zip(
 
     background_tasks = BackgroundTasks()
     background_tasks.add_task(os.remove, temp_zip.name)
+    for tmp_path in temp_files:
+        background_tasks.add_task(os.remove, tmp_path)
 
     return FileResponse(
         path=temp_zip.name,
