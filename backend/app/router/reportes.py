@@ -50,12 +50,11 @@ def reporte_resumen_general(
     # Tiempo promedio de certificación (días desde solicitud hasta certificado)
     query_tiempo = text("""
         SELECT
-            ROUND(AVG(DATEDIFF(
+            ROUND(AVG((EXTRACT(EPOCH FROM (
                 (SELECT fecha_cambio FROM estados_historial
                  WHERE solicitud_id = s.id AND estado_nuevo = 'CERTIFICADO'
-                 LIMIT 1),
-                s.fecha_solicitud
-            )), 1) AS dias_promedio_certificacion
+                 LIMIT 1) - s.fecha_solicitud
+            )) / 86400))::numeric, 1) AS dias_promedio_certificacion
         FROM solicitudes s
         WHERE s.estado_actual = 'CERTIFICADO'
     """)
@@ -280,13 +279,13 @@ def reporte_estado_firmas(
             s.nombre_aprendiz,
             s.nombre_programa,
             r.nombre AS rol_pendiente,
-            DATEDIFF(NOW(), s.fecha_solicitud) AS dias_en_proceso
+            FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_en_proceso
         FROM firmas f
         INNER JOIN solicitudes s ON s.id = f.solicitud_id
         INNER JOIN roles r ON r.id = f.rol_id
         WHERE f.estado_firma = 'PENDIENTE'
         AND s.estado_actual = 'PENDIENTE_FIRMAS'
-        AND DATEDIFF(NOW(), s.fecha_solicitud) > 3
+        AND NOW() - s.fecha_solicitud > INTERVAL '3 days'
         {where}
         ORDER BY dias_en_proceso DESC
     """)
@@ -465,7 +464,7 @@ def reporte_dashboard(
         por_tipo = db.execute(query_tipos).mappings().all()
 
         query_tiempo = text("""
-            SELECT ROUND(AVG(DATEDIFF(eh.fecha_cambio, s.fecha_solicitud)), 1) AS dias_promedio
+            SELECT ROUND(AVG((EXTRACT(EPOCH FROM (eh.fecha_cambio - s.fecha_solicitud)) / 86400))::numeric, 1) AS dias_promedio
             FROM solicitudes s
             INNER JOIN (
                 SELECT solicitud_id, MIN(fecha_cambio) AS fecha_cambio
@@ -493,7 +492,7 @@ def reporte_dashboard(
             SELECT s.id, s.nombre_aprendiz, s.nombre_programa,
                    tp.nombre AS tipo_programa,
                    s.fecha_solicitud,
-                   DATEDIFF(NOW(), s.fecha_solicitud) AS dias_esperando
+                   FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_esperando
             FROM solicitudes s
             INNER JOIN tipo_programas tp ON tp.id = s.tipo_programa_id
             WHERE s.estado_actual = 'PENDIENTE_REVISION'
@@ -505,7 +504,7 @@ def reporte_dashboard(
             SELECT s.id, s.nombre_aprendiz, s.nombre_programa,
                    tp.nombre AS tipo_programa,
                    s.fecha_solicitud,
-                   DATEDIFF(NOW(), s.fecha_solicitud) AS dias_esperando
+                   FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_esperando
             FROM solicitudes s
             INNER JOIN tipo_programas tp ON tp.id = s.tipo_programa_id
             WHERE s.estado_actual = 'CORREGIDO'
@@ -532,7 +531,7 @@ def reporte_dashboard(
             SELECT COUNT(*) AS total
             FROM solicitudes
             WHERE estado_actual = 'PENDIENTE_REVISION'
-            AND DATEDIFF(NOW(), fecha_solicitud) > 3
+            AND NOW() - fecha_solicitud > INTERVAL '3 days'
         """)
         atrasadas = db.execute(query_atrasadas).mappings().first()
 
@@ -540,7 +539,7 @@ def reporte_dashboard(
             SELECT s.id, s.nombre_aprendiz, s.nombre_programa,
                    tp.nombre AS tipo_programa,
                    s.fecha_solicitud,
-                   DATEDIFF(NOW(), s.fecha_solicitud) AS dias_esperando
+                   FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_esperando
             FROM solicitudes s
             INNER JOIN tipo_programas tp ON tp.id = s.tipo_programa_id
             WHERE s.estado_actual = 'PENDIENTE_CERTIFICACION'
@@ -573,7 +572,7 @@ def reporte_dashboard(
             SELECT DISTINCT s.id, s.nombre_aprendiz, s.nombre_programa,
                 tp.nombre AS tipo_programa,
                 s.fecha_solicitud,
-                DATEDIFF(NOW(), s.fecha_solicitud) AS dias_esperando
+                FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_esperando
             FROM firmas f
             INNER JOIN solicitudes s ON s.id = f.solicitud_id
             INNER JOIN tipo_programas tp ON tp.id = s.tipo_programa_id
@@ -686,7 +685,7 @@ def reporte_dashboard(
         SELECT DISTINCT s.id, s.nombre_aprendiz, s.nombre_programa,
             tp.nombre AS tipo_programa,
             s.fecha_solicitud,
-            DATEDIFF(NOW(), s.fecha_solicitud) AS dias_esperando
+            FLOOR(EXTRACT(EPOCH FROM (NOW() - s.fecha_solicitud)) / 86400) AS dias_esperando
         FROM firmas f
         INNER JOIN solicitudes s ON s.id = f.solicitud_id
         INNER JOIN tipo_programas tp ON tp.id = s.tipo_programa_id
