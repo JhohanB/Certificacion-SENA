@@ -3,7 +3,7 @@ import { Table, Button, Card, Typography, Tag, Space, Modal, message, Alert, Div
 import { PlusOutlined, EyeOutlined, SettingOutlined, CheckCircleOutlined, FilePdfOutlined, ReloadOutlined, DeleteOutlined } from '@ant-design/icons'
 import * as pdfjsLib from 'pdfjs-dist'
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url'
-import api, { API_URL } from '../../api/axios'
+import api, { resolveFileUrl } from '../../api/axios'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
@@ -128,7 +128,7 @@ export default function Plantillas() {
             </Popconfirm>
           )}
           <Button size="small" icon={<FilePdfOutlined />}
-            onClick={() => window.open(`${API_URL}/${record.archivo_url}`, '_blank')}>
+            onClick={() => window.open(resolveFileUrl(record.archivo_url), '_blank')}>
             Ver PDF
           </Button>
         </Space>
@@ -244,7 +244,7 @@ function EditorCoordenadas({ plantilla, open, onClose, onGuardado }) {
 
   const cargarPDF = async () => {
     try {
-      const url = `${API_URL}/${plantilla.archivo_url}`
+      const url = resolveFileUrl(plantilla.archivo_url)
       const loadingTask = pdfjsLib.getDocument({
         url,
         httpHeaders: {

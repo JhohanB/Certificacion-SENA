@@ -3,7 +3,7 @@ import { Card, Typography, Tag, Button, Descriptions, Table, Modal, Form, Input,
 import { ArrowLeftOutlined, FilePdfOutlined, CheckCircleOutlined, DownloadOutlined,  CloseCircleOutlined, ExclamationCircleOutlined, FileTextOutlined, SignatureOutlined, LockOutlined, EditOutlined, SwapOutlined, EyeOutlined } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import api, { API_URL } from '../api/axios'
+import api, { resolveFileUrl } from '../api/axios'
 
 // Lazy load del componente pesado de preview de firmas
 const PreviewFirmasSolicitud = lazy(() => import('./components/PreviewFirmasSolicitud'))
@@ -361,7 +361,7 @@ export default function DetalleSolicitud() {
   }
 
   const verDocumento = (url) => {
-    window.open(`${API_URL}/${url}`, '_blank')
+    window.open(resolveFileUrl(url), '_blank')
   }
 
   // -------------------------------------------------------

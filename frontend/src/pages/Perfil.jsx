@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Typography, Form, Input, Button, Alert, Descriptions, Tag, Avatar, Modal } from 'antd'
 import { UserOutlined, SaveOutlined } from '@ant-design/icons'
 import { useAuth } from '../context/AuthContext'
-import api, { API_URL } from '../api/axios'
+import api, { resolveFileUrl } from '../api/axios'
 
 const { Title, Text } = Typography
 
@@ -177,7 +177,7 @@ export default function Perfil() {
                   textAlign: 'center', marginBottom: 16
                 }}>
                   <img
-                    src={`${API_URL}/${firmaUrl}`}
+                    src={resolveFileUrl(firmaUrl)}
                     alt="Mi firma"
                     style={{ maxHeight: 80, maxWidth: '100%', objectFit: 'contain' }}
                     onError={(e) => { e.target.style.display = 'none' }}
