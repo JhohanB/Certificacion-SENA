@@ -61,7 +61,22 @@ def upload_bytes_to_supabase(object_path: str, content: bytes, content_type: str
                 raise RuntimeError(f"Supabase storage upload failed: {response.status} {response.reason}")
     except urllib.error.HTTPError as err:
         body = err.read().decode(errors="ignore")
-        raise RuntimeError(f"Supabase storage upload failed: {err.code} {err.reason} {body}") from err
+        if err.code == 404:
+            # Some Supabase setups require object path upload as part of the URL path.
+            fallback_url = f"{base}/storage/v1/object/{get_supabase_bucket()}/{urllib.parse.quote(object_path, safe='/')}"
+            logger.info("Supabase upload 404, retrying with fallback URL: %s", fallback_url)
+            fallback_request = urllib.request.Request(fallback_url, data=content, headers=headers, method="POST")
+            try:
+                with urllib.request.urlopen(fallback_request) as response:
+                    if response.status not in (200, 201):
+                        raise RuntimeError(f"Supabase storage upload failed: {response.status} {response.reason}")
+            except urllib.error.HTTPError as err2:
+                body2 = err2.read().decode(errors="ignore")
+                raise RuntimeError(
+                    f"Supabase storage upload failed: {err2.code} {err2.reason} {body2}"
+                ) from err2
+        else:
+            raise RuntimeError(f"Supabase storage upload failed: {err.code} {err.reason} {body}") from err
 
     return build_storage_public_url(object_path)
 
