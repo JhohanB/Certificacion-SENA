@@ -52,6 +52,7 @@ def create_rol(db: Session, nombre: str, descripcion: Optional[str], requiere_fi
         query = text("""
             INSERT INTO roles (nombre, descripcion, requiere_firma, activo)
             VALUES (:nombre, :descripcion, :requiere_firma, TRUE)
+            RETURNING id
         """)
         result = db.execute(query, {
             "nombre": nombre.upper(),
@@ -59,7 +60,7 @@ def create_rol(db: Session, nombre: str, descripcion: Optional[str], requiere_fi
             "requiere_firma": requiere_firma
         })
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear rol: {e}")

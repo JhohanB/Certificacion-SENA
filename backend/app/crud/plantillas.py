@@ -17,6 +17,7 @@ def create_plantilla(db: Session, version: str, archivo_url: str, usuario_id: in
         query = text("""
             INSERT INTO plantillas_formato (version, archivo_url, activa, creado_por)
             VALUES (:version, :archivo_url, FALSE, :usuario_id)
+            RETURNING id
         """)
         result = db.execute(query, {
             "version": version,
@@ -24,7 +25,7 @@ def create_plantilla(db: Session, version: str, archivo_url: str, usuario_id: in
             "usuario_id": usuario_id
         })
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear plantilla: {e}")

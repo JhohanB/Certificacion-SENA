@@ -76,10 +76,10 @@ def get_tipo_programa_by_nombre(db: Session, nombre: str) -> Optional[dict]:
 
 def create_tipo_programa(db: Session, nombre: str, descripcion: Optional[str] = None) -> int:
     try:
-        query = text("INSERT INTO tipo_programas (nombre, descripcion) VALUES (:nombre, :descripcion)")
+        query = text("INSERT INTO tipo_programas (nombre, descripcion) VALUES (:nombre, :descripcion) RETURNING id")
         result = db.execute(query, {"nombre": nombre.upper(), "descripcion": descripcion})
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear tipo de programa: {e}")
@@ -149,10 +149,11 @@ def create_documento_requerido(db: Session, nombre: str, descripcion: Optional[s
         query = text("""
             INSERT INTO documentos_requeridos (nombre, descripcion)
             VALUES (:nombre, :descripcion)
+            RETURNING id
         """)
         result = db.execute(query, {"nombre": nombre, "descripcion": descripcion})
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear documento requerido: {e}")

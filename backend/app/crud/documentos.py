@@ -128,7 +128,7 @@ def create_token_edicion(db: Session, solicitud_id: int, token: str) -> None:
         # NOW() ya usa timezone de Colombia (configurado en sesión MySQL)
         query = text("""
             INSERT INTO tokens_edicion (solicitud_id, token, usado, fecha_expiracion)
-            VALUES (:solicitud_id, :token, FALSE, DATE_ADD(NOW(), INTERVAL 7 DAY))
+            VALUES (:solicitud_id, :token, FALSE, NOW() + INTERVAL '7 days')
         """)
         db.execute(query, {"solicitud_id": solicitud_id, "token": token})
         db.commit()

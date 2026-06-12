@@ -31,11 +31,11 @@ def create_solicitud(db: Session, datos: dict) -> int:
                 :numero_documento, :numero_ficha, :nombre_aprendiz,
                 :correo_aprendiz, :telefono_aprendiz, :tipo_programa_id, :nombre_programa,
                 'PENDIENTE_REVISION'
-            )
+            ) RETURNING id
         """)
         result = db.execute(query, datos)
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear solicitud: {e}")

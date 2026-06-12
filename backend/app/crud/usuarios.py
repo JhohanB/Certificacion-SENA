@@ -34,7 +34,7 @@ def create_usuario(db: Session, usuario: UsuarioCreate, password_temporal: str, 
                 :documento, :nombre_completo, :correo, :telefono,
                 :password_hash, TRUE, TRUE,
                 :debe_registrar_firma
-            )
+            ) RETURNING id
         """)
         result = db.execute(query, {
             "documento": usuario.documento,
@@ -45,7 +45,7 @@ def create_usuario(db: Session, usuario: UsuarioCreate, password_temporal: str, 
             "debe_registrar_firma": debe_registrar_firma
         })
         db.commit()
-        return result.lastrowid
+        return result.scalar()
     except SQLAlchemyError as e:
         db.rollback()
         logger.error(f"Error al crear usuario: {e}")
@@ -394,7 +394,7 @@ def agregar_rol(db: Session, usuario_id: int, rol_id: int) -> bool:
         query = text("""
             INSERT INTO usuario_roles (usuario_id, rol_id, activo)
             VALUES (:usuario_id, :rol_id, TRUE)
-            ON DUPLICATE KEY UPDATE activo = TRUE
+            ON CONFLICT (usuario_id, rol_id) DO UPDATE SET activo = TRUE
         """)
         db.execute(query, {"usuario_id": usuario_id, "rol_id": rol_id})
         db.commit()
