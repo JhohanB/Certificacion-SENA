@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from 'react'
 import { Tag, Spin, Alert } from 'antd'
 import { useAuth } from '../../context/AuthContext'
+import { resolveFileUrl } from '../../api/axios'
 
 const PreviewFirmasSolicitud = memo(function PreviewFirmasSolicitud({ solicitud, plantilla }) {
   const containerRef = useRef(null)
@@ -87,11 +88,7 @@ const PreviewFirmasSolicitud = memo(function PreviewFirmasSolicitud({ solicitud,
         const pdfjsWorker = await import('pdfjs-dist/build/pdf.worker?url')
         pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default
 
-        let archivoUrl = primerDoc.archivo_url
-        if (!archivoUrl.startsWith('/')) {
-          archivoUrl = '/' + archivoUrl
-        }
-        const fullUrl = import.meta.env.DEV ? archivoUrl : `https://certificacion-sena.onrender.com${archivoUrl}`
+        const fullUrl = resolveFileUrl(primerDoc.archivo_url)
 
         const response = await fetch(fullUrl, { credentials: 'omit' })
         if (!response.ok) {
