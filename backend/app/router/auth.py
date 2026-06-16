@@ -21,7 +21,7 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)):
     """
     Login de funcionario.
     - Verifica correo y contraseña
-    - Bloquea al usuario por 15 minutos tras 5 intentos fallidos
+    - Bloquea al usuario por 5 minutos tras 5 intentos fallidos
     - Devuelve access token (60 min) y refresh token (7 días)
     - Si debe_cambiar_password = TRUE el frontend debe redirigir al formulario de cambio
     """
@@ -62,7 +62,7 @@ def login(datos: LoginRequest, db: Session = Depends(get_db)):
         if restantes == 0:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Usuario bloqueado por 15 minutos por demasiados intentos fallidos"
+                detail="Usuario bloqueado por 5 minutos por demasiados intentos fallidos"
             )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
