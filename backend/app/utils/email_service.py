@@ -1,5 +1,5 @@
 import logging
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+import resend
 from core.config import settings
 from app.utils.email_templates import (
     template_solicitud_recibida,
@@ -15,21 +15,7 @@ logger = logging.getLogger(__name__)
 # Configuración de conexión
 # -------------------------------------------------------
 
-conf = ConnectionConfig(
-    MAIL_USERNAME=settings.MAIL_USERNAME,
-    MAIL_PASSWORD=settings.MAIL_PASSWORD,
-    MAIL_FROM=settings.MAIL_FROM,
-    MAIL_FROM_NAME="Certificaciones SENA Centro Atención Sector Agropecuario Regional Risaralda",
-    MAIL_PORT=settings.MAIL_PORT,
-    MAIL_SERVER=settings.MAIL_SERVER,
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=True,
-)
-
-fm = FastMail(conf)
-
+resend.api_key = settings.RESEND_API_KEY
 
 async def _enviar(
     destinatario: str,
@@ -47,15 +33,19 @@ async def _enviar(
     error_msg = None
 
     try:
-        message = MessageSchema(
-            subject=asunto,
-            recipients=[destinatario],
-            body=html,
-            subtype=MessageType.html,
-        )
-        await fm.send_message(message)
+        resend.Emails.send({
+            "from": f"Centro Atención Sector Agropecuario - SENA <{settings.MAIL_FROM}>",
+            "to": [destinatario],
+            "subject": asunto,
+            "html": html,
+        })
+
         enviado = True
-        logger.info(f"Correo enviado a {destinatario} — asunto: {asunto}")
+
+        logger.info(
+            f"Correo enviado a {destinatario} — asunto: {asunto}"
+        )
+
     except Exception as e:
         error_msg = str(e)
         logger.error(f"Error al enviar correo a {destinatario}: {e}")
