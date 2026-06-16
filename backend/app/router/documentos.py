@@ -315,13 +315,13 @@ def get_firmas(
 @router.post("/{solicitud_id}/firmar")
 async def firmar_solicitud(
     solicitud_id: int,
-    datos: FirmarSolicitud,
     request: Request,
     db: Session = Depends(get_db),
     current_user: dict = Depends(check_permission("firmas", "firmar"))
 ):
     """
-    El funcionario firma una solicitud ingresando su contraseña.
+    El funcionario firma una solicitud.
+    La autenticación está garantizada por la sesión activa (cierre automático por inactividad).
 
     Reglas:
     - La solicitud debe estar en PENDIENTE_FIRMAS
@@ -340,14 +340,6 @@ async def firmar_solicitud(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La solicitud no está en estado de firma"
-        )
-
-    # Verificar contraseña
-    usuario_completo = crud_solicitudes.get_usuario_by_id_con_password(db, current_user["id"])
-    if not verify_password(datos.password, usuario_completo["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta"
         )
 
     # Verificar que el funcionario tenga firma registrada si su rol la requiere
@@ -477,14 +469,6 @@ async def rechazar_firma(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="La solicitud no está en estado de firma"
-        )
-
-    # Verificar contraseña
-    usuario_completo = crud_solicitudes.get_usuario_by_id_con_password(db, current_user["id"])
-    if not verify_password(datos.password, usuario_completo["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Contraseña incorrecta"
         )
 
     # Obtener firma pendiente del usuario

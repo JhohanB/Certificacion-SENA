@@ -55,9 +55,9 @@ app.add_middleware(
 # -------------------------------------------------------
 # Servir archivos estáticos (firmas y documentos subidos)
 # -------------------------------------------------------
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+# os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # @app.get("/uploads/{file_path:path}")
 # async def serve_upload(file_path: str):

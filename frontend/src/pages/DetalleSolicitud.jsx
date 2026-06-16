@@ -306,13 +306,12 @@ export default function DetalleSolicitud() {
   // -------------------------------------------------------
   // Acciones firmantes
   // -------------------------------------------------------
-  const firmar = async (values) => {
+  const firmar = async () => {
     setEnviando(true)
     try {
-      await api.post(`/documentos/${id}/firmar`, { password: values.password })
+      await api.post(`/documentos/${id}/firmar`)
       message.success('Firma registrada exitosamente')
       setModalFirmar(false)
-      formFirma.resetFields()
       cargar()
     } catch (err) {
       const msg = err.response?.data?.detail
@@ -327,8 +326,7 @@ export default function DetalleSolicitud() {
     try {
       await api.post(`/documentos/${id}/rechazar-firma`, {
         tipo_rechazo: values.tipo_rechazo,
-        motivo_rechazo: values.motivo_rechazo,
-        password: values.password
+        motivo_rechazo: values.motivo_rechazo
       })
       message.success('Rechazo registrado')
       setModalRechazar(false)
@@ -1082,11 +1080,11 @@ export default function DetalleSolicitud() {
       <Modal
         title="Confirmar firma"
         open={modalFirmar}
-        onCancel={() => { setModalFirmar(false); formFirma.resetFields() }}
+        onCancel={() => setModalFirmar(false)}
         footer={null}
         width={600}
       >
-        <Form form={formFirma} layout="vertical" onFinish={firmar}>
+        <div>
           <div style={{ marginBottom: 16 }}>
             <Text strong>Documentos de la solicitud:</Text>
             <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1113,19 +1111,16 @@ export default function DetalleSolicitud() {
             title="Al firmar confirmas que has revisado todos los documentos"
             style={{ marginBottom: 16 }}
           />
-          <Form.Item name="password" label="Confirma tu contraseña para firmar"
-            rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Tu contraseña" size="large" />
-          </Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <Button onClick={() => { setModalFirmar(false); formFirma.resetFields() }}>Cancelar</Button>
-            <Button type="primary" htmlType="submit" loading={enviando}
+            <Button onClick={() => setModalFirmar(false)}>Cancelar</Button>
+            <Button type="primary" loading={enviando}
               icon={<SignatureOutlined />}
+              onClick={() => firmar()}
               style={{ background: '#004A2F', borderColor: '#004A2F' }}>
               Confirmar firma
             </Button>
           </div>
-        </Form>
+        </div>
       </Modal>
 
       {/* Modal Rechazar */}
@@ -1151,10 +1146,6 @@ export default function DetalleSolicitud() {
             rules={[{ required: true, message: 'Ingresa el motivo del rechazo' },
                     { min: 10, message: 'El motivo debe tener al menos 10 caracteres' }]}>
             <Input.TextArea rows={3} placeholder="Describe el motivo del rechazo..." />
-          </Form.Item>
-          <Form.Item name="password" label="Confirma tu contraseña"
-            rules={[{ required: true, message: 'Ingresa tu contraseña' }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="Tu contraseña" size="large" />
           </Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => { setModalRechazar(false); formRechazo.resetFields() }}>Cancelar</Button>

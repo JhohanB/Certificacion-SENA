@@ -956,30 +956,28 @@ O para observar:
 
 **Headers**: Authorization requerida. Requiere permiso "firmas:firmar"
 
-**Body**:
+**Body**: No requiere body (solo header de autorización)
 ```json
-{
-  "password": "miContraseña123"
-}
+{}
 ```
 
 **Response (200)**:
 ```json
 {
-  "message": "Solicitud firmada correctamente",
-  "estado_solicitud": "PENDIENTE_FIRMAS"
+  "message": "Solicitud firmada correctamente"
 }
 ```
 
 **Notas**:
 - La solicitud debe estar en PENDIENTE_FIRMAS
-- El usuario debe tener un rol firmante
-- Se verifica contraseña y que tenga firma registrada si lo requiere
-- Si todas las firmas están completas → estado PENDIENTE_CERTIFICACION
+- El usuario debe tener sesion activa (la sesion cierra automaticamente por inactividad)
+- Se verifica que tenga firma registrada si su rol lo requiere
+- Se valida el orden de firma (algunos roles deben esperar a otros)
+- Si todas las firmas estan completas -> estado PENDIENTE_CERTIFICACION y PDF firmado se genera automaticamente
 
 **Errores**:
-- `401 Unauthorized` - Contraseña incorrecta
-- `400 Bad Request` - No tiene firma pendiente o no cumple orden de firma
+- `401 Unauthorized` - Sesion expirada
+- `400 Bad Request` - No tiene firma pendiente, no cumple orden de firma, o no tiene firma registrada en perfil
 
 ---
 

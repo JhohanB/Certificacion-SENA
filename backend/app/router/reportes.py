@@ -631,8 +631,8 @@ def reporte_dashboard(
                 INNER JOIN usuario_roles ur ON ur.rol_id = r.id
                 WHERE r.es_coordinador = TRUE AND ur.usuario_id = :usuario_id
             )
-            AND MONTH(f.fecha_firma) = MONTH(NOW())
-            AND YEAR(f.fecha_firma) = YEAR(NOW())
+            AND EXTRACT(MONTH FROM f.fecha_firma) = EXTRACT(MONTH FROM NOW())
+            AND EXTRACT(YEAR FROM f.fecha_firma) = EXTRACT(YEAR FROM NOW())
         """)
         firmadas_mes = db.execute(query_firmadas_mes, {"usuario_id": usuario_id}).mappings().first()
 
@@ -640,8 +640,8 @@ def reporte_dashboard(
             SELECT COUNT(*) AS total
             FROM solicitudes
             WHERE estado_actual = 'CERTIFICADO'
-            AND MONTH(fecha_solicitud) = MONTH(NOW())
-            AND YEAR(fecha_solicitud) = YEAR(NOW())
+            AND EXTRACT(MONTH FROM fecha_solicitud) = EXTRACT(MONTH FROM NOW())
+            AND EXTRACT(YEAR FROM fecha_solicitud) = EXTRACT(YEAR FROM NOW())
         """)
         certificadas_mes = db.execute(query_certificadas_mes).mappings().first()
 
@@ -656,8 +656,8 @@ def reporte_dashboard(
             INNER JOIN usuario_roles ur ON ur.rol_id = f.rol_id AND ur.usuario_id = :usuario_id
             WHERE f.estado_firma = 'RECHAZADO'
             AND f.usuario_id = :usuario_id
-            AND MONTH(f.fecha_firma) = MONTH(NOW())
-            AND YEAR(f.fecha_firma) = YEAR(NOW())
+            AND EXTRACT(MONTH FROM f.fecha_firma) = EXTRACT(MONTH FROM NOW())
+            AND EXTRACT(YEAR FROM f.fecha_firma) = EXTRACT(YEAR FROM NOW())
             ORDER BY f.fecha_firma DESC
         """)
         rechazos_propios = db.execute(query_rechazos_propios, {
@@ -716,8 +716,8 @@ def reporte_dashboard(
         INNER JOIN roles r ON r.id = f.rol_id AND r.nombre = :rol_actual
         INNER JOIN usuario_roles ur ON ur.rol_id = f.rol_id AND ur.usuario_id = :usuario_id
         WHERE f.estado_firma = 'FIRMADO'
-        AND MONTH(f.fecha_firma) = MONTH(NOW())
-        AND YEAR(f.fecha_firma) = YEAR(NOW())
+        AND EXTRACT(MONTH FROM f.fecha_firma) = EXTRACT(MONTH FROM NOW())
+        AND EXTRACT(YEAR FROM f.fecha_firma) = EXTRACT(YEAR FROM NOW())
     """)
     firmadas_mes = db.execute(query_firmadas_mes, {
         "usuario_id": usuario_id,
@@ -730,8 +730,8 @@ def reporte_dashboard(
         INNER JOIN roles r ON r.id = f.rol_id AND r.nombre = :rol_actual
         INNER JOIN usuario_roles ur ON ur.rol_id = f.rol_id AND ur.usuario_id = :usuario_id
         WHERE f.estado_firma = 'RECHAZADO'
-        AND MONTH(f.fecha_firma) = MONTH(NOW())
-        AND YEAR(f.fecha_firma) = YEAR(NOW())
+        AND EXTRACT(MONTH FROM f.fecha_firma) = EXTRACT(MONTH FROM NOW())
+        AND EXTRACT(YEAR FROM f.fecha_firma) = EXTRACT(YEAR FROM NOW())
     """)
 
     rechazadas_mes = db.execute(query_rechazadas_mes, {
@@ -750,8 +750,8 @@ def reporte_dashboard(
         INNER JOIN usuario_roles ur ON ur.rol_id = f.rol_id AND ur.usuario_id = :usuario_id
         WHERE f.estado_firma = 'RECHAZADO'
         AND f.usuario_id = :usuario_id
-        AND MONTH(f.fecha_firma) = MONTH(NOW())
-        AND YEAR(f.fecha_firma) = YEAR(NOW())
+        AND EXTRACT(MONTH FROM f.fecha_firma) = EXTRACT(MONTH FROM NOW())
+        AND EXTRACT(YEAR FROM f.fecha_firma) = EXTRACT(YEAR FROM NOW())
         ORDER BY f.fecha_firma DESC
     """)
 

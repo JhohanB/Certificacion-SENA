@@ -9,6 +9,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
+from app.utils.storage import eliminar_prefijo_supabase
+
 
 # -------------------------------------------------------
 # Obtener solicitudes certificadas sin documentos eliminados
@@ -22,7 +24,6 @@ def obtener_solicitudes_certificadas_sin_docs_eliminados(db: Session, solicitud_
     - Tienen documentos activos
     """
     try:
-        placeholders = ','.join(['?' for _ in solicitud_ids])
         query = text(f"""
             SELECT 
                 s.id, s.numero_documento, s.numero_ficha, s.nombre_aprendiz,
@@ -34,8 +35,8 @@ def obtener_solicitudes_certificadas_sin_docs_eliminados(db: Session, solicitud_
             WHERE s.id IN ({','.join([':id_' + str(i) for i in range(len(solicitud_ids))])})
             AND s.estado_actual = 'CERTIFICADO'
             AND s.documentos_eliminados = FALSE
-            GROUP BY s.id
-            HAVING cantidad_documentos > 0
+            GROUP BY s.id, s.numero_documento, s.numero_ficha, s.nombre_aprendiz, s.estado_actual, s.documentos_eliminados
+            HAVING COUNT(sd.id) > 0
         """)
         
         params = {f'id_{i}': id_ for i, id_ in enumerate(solicitud_ids)}
@@ -55,50 +56,17 @@ def eliminar_carpeta_documentos_solicitud(
     solicitud_id: int
 ) -> Tuple[int, List[str]]:
     """
-    Elimina completamente la carpeta:
-    uploads/documentos/{solicitud_id}
-
-    Retorna:
-        (cantidad_eliminados_aproximada, errores)
+    Elimina todos los archivos de la solicitud
+    almacenados en Supabase Storage.
     """
-    errores = []
 
-    try:
-        ruta_carpeta = os.path.join(
-            upload_dir,
-            str(solicitud_id)
-        )
+    prefix = f"documentos/{solicitud_id}/"
 
-        ruta_absoluta = os.path.abspath(ruta_carpeta)
-        upload_absoluto = os.path.abspath(upload_dir)
+    logger.info(
+        f"Eliminando archivos Supabase para solicitud {solicitud_id}"
+    )
 
-        # Seguridad: validar que esté dentro de uploads
-        if not ruta_absoluta.startswith(upload_absoluto):
-            errores.append("Ruta inválida detectada")
-            return 0, errores
-
-        if os.path.exists(ruta_absoluta):
-            cantidad_archivos = sum(
-                len(files)
-                for _, _, files in os.walk(ruta_absoluta)
-            )
-
-            shutil.rmtree(ruta_absoluta)
-
-            logger.info(f"Carpeta eliminada: {ruta_absoluta}")
-
-            return cantidad_archivos, []
-
-        error_msg = f"Carpeta de documentos no encontrada: {ruta_absoluta}"
-        logger.error(error_msg)
-        errores.append(error_msg)
-        return 0, errores
-
-    except Exception as e:
-        error_msg = f"Error eliminando carpeta de solicitud {solicitud_id}: {str(e)}"
-        logger.error(error_msg)
-        errores.append(error_msg)
-        return 0, errores
+    return eliminar_prefijo_supabase(prefix)
 
 # -------------------------------------------------------
 # Eliminar documentos de BD

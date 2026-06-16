@@ -22,8 +22,8 @@ conf = ConnectionConfig(
     MAIL_FROM_NAME="Certificaciones SENA Centro Atención Sector Agropecuario Regional Risaralda",
     MAIL_PORT=settings.MAIL_PORT,
     MAIL_SERVER=settings.MAIL_SERVER,
-    MAIL_STARTTLS=False,
-    MAIL_SSL_TLS=True,
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True,
 )

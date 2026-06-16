@@ -86,16 +86,19 @@ def incrustar_firmas_en_pdf(
         ruta_salida: Ruta donde guardar el PDF con firmas.
 
     Returns:
+    
         tuple: (ruta_pdf_firmado, hash_pdf)
     """
-    if not os.path.exists(ruta_pdf_original):
+    local_pdf_path, cleanup_pdf = ensure_local_file(ruta_pdf_original)
+
+    if not os.path.exists(local_pdf_path):
         raise FileNotFoundError(f"PDF consolidado no encontrado: {ruta_pdf_original}")
 
     # Indexar firmas y coordenadas por rol_id para acceso rápido
     firmas_por_rol = {f["rol_id"]: f for f in firmas}
     coords_por_rol = {c["rol_id"]: c for c in coordenadas}
 
-    reader = PdfReader(ruta_pdf_original)
+    reader = PdfReader(local_pdf_path)
     writer = PdfWriter()
 
     for page_index, page in enumerate(reader.pages):
@@ -139,8 +142,8 @@ def incrustar_firmas_en_pdf(
                 try:
                     # Ajustar proporciones sin distorsionar la imagen
                     from PIL import Image as PILImage
-                    pil_img = PILImage.open(local_firma_path)
-                    img_w, img_h = pil_img.size
+                    with PILImage.open(local_firma_path) as pil_img:
+                        img_w, img_h = pil_img.size
 
                     # Calcular escala manteniendo proporción
                     escala = min(ancho / img_w, alto / img_h)
@@ -156,8 +159,10 @@ def incrustar_firmas_en_pdf(
                     x_centrado = x + (ancho - ancho_real) / 2
                     y_centrado = y + (alto - alto_real) / 2
 
-                    img = ImageReader(local_firma_path)
-                    c.drawImage(img, x_centrado, y_centrado, width=ancho_real, height=alto_real, mask="auto")
+                    with open(local_firma_path, "rb") as f:
+                        img = ImageReader(io.BytesIO(f.read()))
+
+                    c.drawImage( img, x_centrado, y_centrado, width=ancho_real, height=alto_real, mask="auto" )
 
                     # Escribir nombre del funcionario en el campo de nombres
                     nombre_x = (coord["nombre_x_porcentaje"] / 100) * ancho_pagina
@@ -197,6 +202,9 @@ def incrustar_firmas_en_pdf(
     with open(ruta_salida, "rb") as f:
         contenido = f.read()
         pdf_hash = hashlib.sha256(contenido).hexdigest()
+
+    if cleanup_pdf and os.path.exists(local_pdf_path):
+        os.remove(local_pdf_path)
 
     logger.info(f"Firmas incrustadas correctamente en: {ruta_salida}")
     return ruta_salida, pdf_hash

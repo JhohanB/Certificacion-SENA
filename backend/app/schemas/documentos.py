@@ -43,11 +43,11 @@ class RevisarDocumento(BaseModel):
 
 # -------------------------------------------------------
 # Firmar una solicitud
-# El funcionario debe ingresar su contraseña para confirmar
+# La sesión activa es la autenticación (cierre automático por inactividad)
 # -------------------------------------------------------
 
 class FirmarSolicitud(BaseModel):
-    password: str = Field(min_length=1, description="Contraseña del funcionario para confirmar la firma")
+    pass
 
 
 # -------------------------------------------------------
@@ -58,7 +58,6 @@ class FirmarSolicitud(BaseModel):
 class RechazarFirma(BaseModel):
     tipo_rechazo: TipoRechazo
     motivo_rechazo: str = Field(min_length=10, max_length=500)
-    password: str = Field(min_length=1)
 
 
 # -------------------------------------------------------
