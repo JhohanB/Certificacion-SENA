@@ -99,6 +99,8 @@ class CorreccionDatosAprendiz(BaseModel):
     nombre_aprendiz: Optional[str] = Field(default=None, min_length=3, max_length=150)
     tipo_documento: Optional[TipoDocumento] = None
     numero_documento: Optional[str] = Field(default=None, min_length=3, max_length=20)
+    correo_aprendiz: Optional[EmailStr] = None
+    telefono_aprendiz: Optional[str] = Field(default=None, min_length=7, max_length=20)
 
 
 # -------------------------------------------------------
