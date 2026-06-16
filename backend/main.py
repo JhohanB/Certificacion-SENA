@@ -144,3 +144,13 @@ def google_test():
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/smtp-test-587")
+def smtp_test_587():
+    import socket
+    try:
+        socket.create_connection(("smtp.gmail.com", 587), timeout=10)
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
