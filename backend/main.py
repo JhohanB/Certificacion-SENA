@@ -118,10 +118,9 @@ def health_check(db=None):
         "version": settings.PROJECT_VERSION
     }
 
-import socket
-
 @app.get("/smtp-test")
 def smtp_test():
+    import socket
     try:
         socket.create_connection(
             (settings.MAIL_SERVER, settings.MAIL_PORT),
@@ -146,11 +145,11 @@ def google_test():
         return {"ok": False, "error": str(e)}
 
 
-@app.get("/smtp-test-587")
-def smtp_test_587():
+@app.get("/smtp-test-465")
+def smtp_test_465():
     import socket
     try:
-        socket.create_connection(("smtp.gmail.com", 587), timeout=10)
+        socket.create_connection(("smtp.gmail.com", 465), timeout=10)
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
