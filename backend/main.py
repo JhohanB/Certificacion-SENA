@@ -153,3 +153,16 @@ def smtp_test_465():
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/smtp-outlook")
+def smtp_outlook():
+    import socket
+    try:
+        socket.create_connection(
+            ("smtp.office365.com", 587),
+            timeout=10
+        )
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
