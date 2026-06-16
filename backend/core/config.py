@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------
 
     RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "onboarding@resend.dev")
 
     # -------------------------------------------------------
     # URL base del sistema
