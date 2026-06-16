@@ -166,3 +166,17 @@ def smtp_outlook():
         return {"ok": True}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+@app.get("/https-test")
+def https_test():
+    import socket
+
+    try:
+        socket.create_connection(
+            ("api.resend.com", 443),
+            timeout=10
+        )
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
