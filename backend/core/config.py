@@ -54,12 +54,8 @@ class Settings(BaseSettings):
     # -------------------------------------------------------
     # Correo electrónico
     # -------------------------------------------------------
-    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME", "")
-    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD", "")
-    MAIL_FROM: str = os.getenv("MAIL_FROM", "")
-    MAIL_PORT: int = int(os.getenv("MAIL_PORT", "587"))
-    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
-    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Certificacion Centro Atención Sector Agropecuario - SENA")
+
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
 
     # -------------------------------------------------------
     # URL base del sistema
