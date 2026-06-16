@@ -30,9 +30,15 @@ def reporte_resumen_general(
         SELECT estado_actual, COUNT(*) AS total
         FROM solicitudes
         GROUP BY estado_actual
-        ORDER BY FIELD(estado_actual,
-            'PENDIENTE_REVISION','CON_OBSERVACIONES','CORREGIDO',
-            'PENDIENTE_FIRMAS','PENDIENTE_CERTIFICACION','CERTIFICADO')
+        ORDER BY CASE estado_actual
+            WHEN 'PENDIENTE_REVISION' THEN 1
+            WHEN 'CON_OBSERVACIONES' THEN 2
+            WHEN 'CORREGIDO' THEN 3
+            WHEN 'PENDIENTE_FIRMAS' THEN 4
+            WHEN 'PENDIENTE_CERTIFICACION' THEN 5
+            WHEN 'CERTIFICADO' THEN 6
+            ELSE 999
+        END
     """)
     por_estado = db.execute(query_estados).mappings().all()
 
