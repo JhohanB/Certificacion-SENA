@@ -117,3 +117,16 @@ def health_check(db=None):
         "base_de_datos": "ok" if db_ok else "error",
         "version": settings.PROJECT_VERSION
     }
+
+import socket
+
+@app.get("/smtp-test")
+def smtp_test():
+    try:
+        socket.create_connection(
+            (settings.MAIL_SERVER, settings.MAIL_PORT),
+            timeout=10
+        )
+        return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
