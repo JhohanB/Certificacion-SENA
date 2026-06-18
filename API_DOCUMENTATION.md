@@ -553,6 +553,7 @@ Authorization: Bearer {token}
   {"valor": "CORREGIDO", "etiqueta": "CORREGIDO"},
   {"valor": "PENDIENTE_FIRMAS", "etiqueta": "PENDIENTE FIRMAS"},
   {"valor": "PENDIENTE_CERTIFICACION", "etiqueta": "PENDIENTE CERTIFICACION"},
+  {"valor": "RECHAZADO", "etiqueta": "RECHAZADO"},
   {"valor": "CERTIFICADO", "etiqueta": "CERTIFICADO"}
 ]
 ```
