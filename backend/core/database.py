@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 connect_args = {}
 if settings.DATABASE_URL.startswith("mysql"):
     connect_args = {"init_command": "SET time_zone = '-05:00'"}
+elif "postgres" in settings.DATABASE_URL:
+    # Force session timezone to Colombia for PostgreSQL connections.
+    # This helps keep database-generated timestamps aligned with Colombia time.
+    connect_args = {"options": "-c timezone=America/Bogota"}
 
 engine = create_engine(
     settings.DATABASE_URL,
