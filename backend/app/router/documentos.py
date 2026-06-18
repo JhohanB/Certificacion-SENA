@@ -22,6 +22,7 @@ from app.crud import solicitudes as crud_solicitudes
 from app.router.dependencies import check_permission
 from app.utils.email_service import (
     enviar_certificacion_completada,
+    enviar_notificacion_rechazo_externo,
 )
 from app.utils.storage import download_to_temp, is_remote_url, upload_bytes_to_supabase
 
@@ -502,21 +503,6 @@ async def rechazar_firma(
     db.execute(sql_text("""
         UPDATE solicitudes SET observaciones_generales = :motivo WHERE id = :id
     """), {"motivo": motivo_completo, "id": solicitud_id})
-    
-    # Eliminar PDF consolidado del disco (como en devolver-revision)
-    pdf_url = solicitud.get("pdf_consolidado_url")
-    if pdf_url and os.path.exists(pdf_url):
-        os.remove(pdf_url)
-    
-    # Limpiar referencia al PDF en BD
-    db.execute(sql_text("""
-        UPDATE solicitudes
-        SET pdf_consolidado_url = NULL,
-            pdf_hash = NULL,
-            fecha_generacion_pdf = NULL
-        WHERE id = :id
-    """), {"id": solicitud_id})
-    db.commit()
 
     # Cambiar estado a PENDIENTE_REVISION sin eliminar PDF ni otras firmas
     crud_solicitudes.update_estado_solicitud(
@@ -694,6 +680,77 @@ async def certificar_solicitud(
               current_user["id"])
     logger.info(f"Solicitud {solicitud_id} certificada")
     return {"message": "Solicitud marcada como certificada. Se notificará al aprendiz"}
+
+
+class RechazarSolicitudRequest(PydanticBaseModel):
+    motivo: str
+    confirmar: bool
+
+
+@router.put("/{solicitud_id}/rechazar")
+async def rechazar_solicitud(
+    solicitud_id: int,
+    payload: RechazarSolicitudRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(check_permission("solicitudes", "certificar"))
+):
+    """
+    El funcionario de certificación puede marcar una solicitud como RECHAZADO.
+    Solo desde estados PENDIENTE_REVISION o CORREGIDO.
+    Requiere motivo y confirmación explícita.
+    """
+    solicitud = crud_solicitudes.get_solicitud_by_id(db, solicitud_id)
+    if not solicitud:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Solicitud no encontrada")
+
+    if solicitud["estado_actual"] not in ["PENDIENTE_REVISION", "CORREGIDO"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Solo se puede rechazar una solicitud en revisión o corregida")
+
+    if not payload.confirmar:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Confirmación requerida para rechazar la solicitud")
+
+    motivo_rechazo = payload.motivo.strip()
+    observaciones_rechazo = f"Motivo de rechazo: {motivo_rechazo}"
+
+    from sqlalchemy import text as sql_text
+    db.execute(sql_text("""
+        UPDATE solicitudes SET observaciones_generales = :motivo
+        WHERE id = :id
+    """), {"motivo": observaciones_rechazo, "id": solicitud_id})
+    db.commit()
+
+    crud_solicitudes.update_estado_solicitud(
+        db, solicitud_id, "RECHAZADO",
+        current_user["id"], motivo_rechazo
+    )
+
+    try:
+        await enviar_notificacion_rechazo_externo(
+            correo=solicitud["correo_aprendiz"],
+            nombre=solicitud["nombre_aprendiz"],
+            programa=solicitud["nombre_programa"],
+            motivo=motivo_rechazo,
+            nombre_funcionario_rechazo=current_user["nombre_completo"],
+            correo_funcionario_rechazo=current_user["correo"],
+            numero_documento=solicitud.get("numero_documento"),
+            solicitud_id=solicitud_id,
+            db=db,
+        )
+    except Exception:
+        logger.exception("Error enviando correo de rechazo al aprendiz")
+
+    from app.utils.auditoria import registrar
+    try:
+        registrar(db, "SOLICITUD_RECHAZADA", "solicitudes", solicitud_id,
+                  f"Solicitud rechazada por {current_user['nombre_completo']}: {motivo_rechazo}",
+                  current_user["id"], request.client.host if request.client else None)
+    except Exception:
+        logger.exception("Error registrando auditoría de rechazo")
+
+    return {"message": "Solicitud marcada como RECHAZADO. El aprendiz será notificado y la solicitud se considera rechazada definitivamente."}
 
 
 @router.post("/{solicitud_id}/aprobar-todos")
