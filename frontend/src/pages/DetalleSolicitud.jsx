@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo, Suspense, lazy } from 'react'
-import { Card, Typography, Tag, Button, Descriptions, Table, Modal, Form, Input, Alert, Spin, Space, Popconfirm, message, Select } from 'antd'
+import { Card, Typography, Tag, Button, Descriptions, Table, Modal, Form, Input, Alert, Spin, Space, Popconfirm, message, Select, Radio } from 'antd'
 import { ArrowLeftOutlined, FilePdfOutlined, CheckCircleOutlined, DownloadOutlined,  CloseCircleOutlined, ExclamationCircleOutlined, FileTextOutlined, SignatureOutlined, LockOutlined, EditOutlined, SwapOutlined, EyeOutlined } from '@ant-design/icons'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -11,11 +11,12 @@ const PreviewFirmasSolicitud = lazy(() => import('./components/PreviewFirmasSoli
 const { Title, Text } = Typography
 
 const COLORES_ESTADO = {
-  PENDIENTE_REVISION: 'orange',
-  CON_OBSERVACIONES: 'red',
+  PENDIENTE_REVISION: 'gold',
+  CON_OBSERVACIONES: 'orange',
   CORREGIDO: 'blue',
   PENDIENTE_FIRMAS: 'purple',
   PENDIENTE_CERTIFICACION: 'cyan',
+  RECHAZADO: 'red',
   CERTIFICADO: 'green',
 }
 
@@ -25,6 +26,7 @@ const TEXTOS_ESTADO = {
   CORREGIDO: 'Corregido',
   PENDIENTE_FIRMAS: 'Pendiente firmas',
   PENDIENTE_CERTIFICACION: 'Pendiente certificación',
+  RECHAZADO: 'Rechazado',
   CERTIFICADO: 'Certificado',
 }
 
@@ -93,10 +95,12 @@ export default function DetalleSolicitud() {
   const [observacionesGenerales, setObservacionesGenerales] = useState('')
   const [guardandoObservaciones, setGuardandoObservaciones] = useState(false)
   const [tipoRechazoActual, setTipoRechazoActual] = useState(null)
+  const [enviarTokenRevision, setEnviarTokenRevision] = useState(null)
 
   // Modales
   const [modalFirmar, setModalFirmar] = useState(false)
   const [modalRechazar, setModalRechazar] = useState(false)
+  const [modalRechazarSolicitud, setModalRechazarSolicitud] = useState(false)
   const [modalCertificar, setModalCertificar] = useState(false)
   const [modalReubicar, setModalReubicar] = useState(false)
   const [modalEditarPrograma, setModalEditarPrograma] = useState(false)
@@ -110,6 +114,7 @@ export default function DetalleSolicitud() {
 
   const [formFirma] = Form.useForm()
   const [formRechazo] = Form.useForm()
+  const [formRechazoSolicitud] = Form.useForm()
   const [formReubicar] = Form.useForm()
   const [formPrograma] = Form.useForm()
   const [formAprendiz] = Form.useForm()
@@ -121,6 +126,10 @@ export default function DetalleSolicitud() {
   const hayDocumentosObservados = useMemo(
     () => solicitud?.documentos?.some(d => d.estado_documento === 'OBSERVADO'),
     [solicitud?.documentos]
+  )
+  const soloObservacionesGenerales = useMemo(
+    () => !hayDocumentosObservados && !!solicitud?.observaciones_generales?.trim(),
+    [hayDocumentosObservados, solicitud?.observaciones_generales]
   )
   const tieneObservacionesParaReenviar = useMemo(
     () => hayDocumentosObservados || !!solicitud?.observaciones_generales,
@@ -208,14 +217,38 @@ export default function DetalleSolicitud() {
     if (modalConfirmarRevision && solicitud?.coordinador_id) {
       formConfirmar.setFieldsValue({ coordinador_id: solicitud.coordinador_id })
     }
-  }, [modalConfirmarRevision])
+  }, [modalConfirmarRevision, solicitud?.coordinador_id])
 
   useEffect(() => {
-    if (firmas.length > 0) {
-      const firmaRechazada = firmas.find(f => f.estado_firma === 'RECHAZADO')
-      if (firmaRechazada) setTipoRechazoActual(firmaRechazada.tipo_rechazo)
+    const firmaRechazada = firmas.find(f => f.estado_firma === 'RECHAZADO')
+    if (firmaRechazada) {
+      setTipoRechazoActual(firmaRechazada.tipo_rechazo)
+    } else {
+      setTipoRechazoActual(null)
     }
   }, [firmas])
+
+  useEffect(() => {
+    if (solicitud) {
+      setObservacionesGenerales(solicitud.observaciones_generales || '')
+    }
+  }, [solicitud])
+
+  useEffect(() => {
+    if (hayDocumentosObservados) {
+      setEnviarTokenRevision(true)
+      return
+    }
+
+    if (observacionesGenerales.trim() === '') {
+      setEnviarTokenRevision(null)
+      return
+    }
+
+    if (enviarTokenRevision === null) {
+      setEnviarTokenRevision(false)
+    }
+  }, [hayDocumentosObservados, observacionesGenerales, enviarTokenRevision])
 
   // -------------------------------------------------------
   // Acciones funcionario
@@ -252,9 +285,12 @@ export default function DetalleSolicitud() {
   const guardarObservacionesGenerales = async (valor) => {
     setGuardandoObservaciones(true)
     try {
-      await api.put(`/solicitudes/${id}/programa`, { observaciones_generales: valor })
-    } catch {}
-    finally {
+      await api.put(`/solicitudes/${id}/programa`, {
+        observaciones_generales: valor?.trim() ? valor : null
+      })
+    } catch (err) {
+      message.error('Error al guardar las observaciones generales')
+    } finally {
       setGuardandoObservaciones(false)
     }
   }
@@ -262,9 +298,11 @@ export default function DetalleSolicitud() {
   const confirmarRevision = async (values) => {
     setEnviando(true)
     try {
-      const { data } = await api.post(`/solicitudes/${id}/confirmar-revision`, {
-        coordinador_id: values.coordinador_id
-      })
+      const payload = {
+        coordinador_id: values.coordinador_id,
+        enviar_token: enviarTokenRevision
+      }
+      const { data } = await api.post(`/solicitudes/${id}/confirmar-revision`, payload)
       message.success(data.message)
       setModalConfirmarRevision(false)
       formConfirmar.resetFields()
@@ -340,6 +378,25 @@ export default function DetalleSolicitud() {
     }
   }
 
+  const rechazarSolicitud = async (values) => {
+    setEnviando(true)
+    try {
+      await api.put(`/documentos/${id}/rechazar`, {
+        motivo: values.motivo_rechazo,
+        confirmar: true
+      })
+      message.success('Solicitud rechazada')
+      setModalRechazarSolicitud(false)
+      formRechazoSolicitud.resetFields()
+      cargar()
+    } catch (err) {
+      const msg = err.response?.data?.detail
+      message.error(typeof msg === 'string' ? msg : 'Error al rechazar la solicitud')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   const certificar = async () => {
     setEnviando(true)
     try {
@@ -373,6 +430,8 @@ export default function DetalleSolicitud() {
   const puedeFirmar = (esFirmante || esCoordinador) &&
     solicitud.estado_actual === 'PENDIENTE_FIRMAS' && !yaFirme
   const puedeConfirmarRevision = esFuncionario &&
+    ['PENDIENTE_REVISION', 'CORREGIDO'].includes(solicitud.estado_actual)
+  const puedeRechazarSolicitud = esFuncionario &&
     ['PENDIENTE_REVISION', 'CORREGIDO'].includes(solicitud.estado_actual)
   const puedeCertificar = esFuncionario &&
     solicitud.estado_actual === 'PENDIENTE_CERTIFICACION'
@@ -538,6 +597,15 @@ export default function DetalleSolicitud() {
               Confirmar revisión
             </Button>
           )}
+          {puedeRechazarSolicitud && (
+            <Button
+              danger
+              icon={<CloseCircleOutlined />}
+              onClick={() => setModalRechazarSolicitud(true)}
+            >
+              Rechazar solicitud
+            </Button>
+          )}
           {puedeFirmar && (
             <>
               <Button
@@ -629,24 +697,82 @@ export default function DetalleSolicitud() {
       </Card>
 
       {esFuncionario && tieneObservacionesParaReenviar && ['PENDIENTE_REVISION', 'CON_OBSERVACIONES'].includes(solicitud.estado_actual) && tipoRechazoActual === null && (
-        <Popconfirm
-          title="¿Reenviar las observaciones al aprendiz?"
-          description={solicitud.observaciones_generales || 'Se reenviarán las observaciones de documentos.'}
-          onConfirm={async () => {
-            try {
-              await api.post(`/solicitudes/${id}/reenviar-observaciones`)
-              message.success('Observaciones reenviadas al aprendiz')
-              cargar()
-            } catch (err) {
-              message.error(err.response?.data?.detail ?? 'Error al reenviar observaciones')
-            }
-          }}
-          okText="Sí" cancelText="No"
-        >
-          <Button icon={<ExclamationCircleOutlined />} style={{ background: '#faad14', borderColor: '#faad14', color: '#fff', marginBottom: 16 }}>
-            Reenviar correo
-          </Button>
-        </Popconfirm>
+        <Card style={{ borderRadius: 12, marginBottom: 16 }}>
+          <Space wrap>
+            <Popconfirm
+              title="¿Reenviar las observaciones al aprendiz?"
+              description={solicitud.observaciones_generales || 'Se reenviarán las observaciones de documentos.'}
+              onConfirm={async () => {
+                try {
+                  await api.post(`/solicitudes/${id}/reenviar-observaciones`, {
+                    enviar_token: hayDocumentosObservados
+                  })
+                  message.success('Observaciones reenviadas al aprendiz')
+                  cargar()
+                } catch (err) {
+                  message.error(err.response?.data?.detail ?? 'Error al reenviar observaciones')
+                }
+              }}
+              okText="Sí" cancelText="No"
+            >
+              <Button icon={<ExclamationCircleOutlined />} style={{ background: '#faad14', borderColor: '#faad14', color: '#fff', marginBottom: 16 }}>
+                Reenviar correo
+              </Button>
+            </Popconfirm>
+
+            {solicitud.observaciones_generales && (
+              <Popconfirm
+                title="¿Quitar las observaciones generales?"
+                onConfirm={async () => {
+                  try {
+                    await api.put(`/solicitudes/${id}/programa`, { observaciones_generales: null })
+                    message.success('Observaciones eliminadas')
+                    cargar()
+                  } catch (err) {
+                    message.error('Error al quitar observaciones')
+                  }
+                }}
+                okText="Sí" cancelText="No"
+              >
+                <Button icon={<CheckCircleOutlined />}>
+                  Quitar observaciones
+                </Button>
+              </Popconfirm>
+            )}
+
+          </Space>
+        </Card>
+      )}
+
+      {/* Resolver observación: cuando no hay documentos observados y no hay rechazo de firma */}
+      {esFuncionario && solicitud.estado_actual === 'CON_OBSERVACIONES' && !hayDocumentosObservados && tipoRechazoActual === null && (
+        <Card style={{ borderRadius: 12, marginBottom: 16, border: '2px solid #52c41a', background: '#f6ffed' }}>
+          <Alert
+            type="success"
+            showIcon
+            title="Observación pendiente de validación"
+            description="No hay documentos observados asociados a esta solicitud. Si la situación reportada ya fue atendida, puedes marcar la solicitud como corregida para continuar el proceso."
+            style={{ marginBottom: 16 }}
+          />
+          <Popconfirm
+            title="¿Marcar esta solicitud como corregida?"
+            description="La solicitud pasará a estado CORREGIDO para revisión final antes de firmas."
+            onConfirm={async () => {
+              try {
+                await api.put(`/solicitudes/${id}/marcar-corregido`)
+                message.success('Solicitud marcada como resuelta')
+                cargar()
+              } catch (err) {
+                message.error(err.response?.data?.detail ?? 'Error al marcar como corregida')
+              }
+            }}
+            okText="Sí" cancelText="No"
+          >
+            <Button type="primary" size="large" icon={<CheckCircleOutlined />} style={{ background: '#52c41a', borderColor: '#52c41a' }}>
+              Cambiar a CORREGIDO
+            </Button>
+          </Popconfirm>
+        </Card>
       )}
 
       {esFuncionario && tieneObservacionesParaReenviar && ['PENDIENTE_REVISION', 'CON_OBSERVACIONES'].includes(solicitud.estado_actual) && tipoRechazoActual !== null && (
@@ -692,7 +818,9 @@ export default function DetalleSolicitud() {
                 : "¿Enviar correo al aprendiz con enlace para corregir su solicitud?"}
               onConfirm={async () => {
                 try {
-                  await api.post(`/solicitudes/${id}/enviar-observaciones`)
+                  await api.post(`/solicitudes/${id}/enviar-observaciones`, {
+                    enviar_token: tipoRechazoActual !== 'POR_OTRA_RAZON'
+                  })
                   message.success('Notificación enviada al aprendiz')
                   cargar()
                 } catch (err) {
@@ -730,7 +858,9 @@ export default function DetalleSolicitud() {
               description="Se enviará nuevamente el correo con las observaciones. Si es por documentos, se generará un nuevo enlace de edición."
               onConfirm={async () => {
                 try {
-                  await api.post(`/solicitudes/${id}/reenviar-observaciones`)
+                  await api.post(`/solicitudes/${id}/reenviar-observaciones`, {
+                    enviar_token: hayDocumentosObservados
+                  })
                   message.success('Observaciones reenviadas al aprendiz')
                   cargar()
                 } catch (err) {
@@ -744,7 +874,7 @@ export default function DetalleSolicitud() {
               </Button>
             </Popconfirm>
             
-            {tipoRechazoActual === 'POR_OTRA_RAZON' && solicitud.estado_actual === 'CON_OBSERVACIONES' && (
+            {((tipoRechazoActual === 'POR_OTRA_RAZON') || soloObservacionesGenerales) && solicitud.estado_actual === 'CON_OBSERVACIONES' && (
               <Popconfirm
                 title="¿Marcar esta solicitud como resuelta?"
                 description="La solicitud pasará a estado CORREGIDO y volverá a PENDIENTE_REVISION para revisión final antes de firmas."
@@ -916,6 +1046,31 @@ export default function DetalleSolicitud() {
             onBlur={e => guardarObservacionesGenerales(e.target.value)}
             placeholder="Describe las observaciones generales..."
           />
+          {observacionesGenerales.trim() !== '' && !hayDocumentosObservados && (
+            <div style={{ marginTop: 16 }}>
+              <Text strong style={{ display: 'block', marginBottom: 8 }}>
+                Tipo de notificación al aprendiz
+              </Text>
+              <Radio.Group
+                value={enviarTokenRevision}
+                onChange={e => setEnviarTokenRevision(e.target.value)}
+              >
+                <Radio value={true}>Enviar enlace de corrección (token)</Radio>
+                <Radio value={false}>Enviar notificación informativa sin enlace</Radio>
+              </Radio.Group>
+              <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>
+                Solo se mostrará esta opción cuando haya observaciones generales sin documentos observados. Si hay documentos observados, el sistema enviará siempre el token.
+              </Text>
+            </div>
+          )}
+          {hayDocumentosObservados && (
+            <Alert
+              type="info"
+              showIcon
+              message="Hay documentos observados. Se enviará enlace de corrección automáticamente."
+              style={{ marginTop: 16 }}
+            />
+          )}
         </Card>
       )}
 
@@ -1149,6 +1304,29 @@ export default function DetalleSolicitud() {
           </Form.Item>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={() => { setModalRechazar(false); formRechazo.resetFields() }}>Cancelar</Button>
+            <Button danger type="primary" htmlType="submit" loading={enviando}>
+              Confirmar rechazo
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Modal Rechazar solicitud */}
+      <Modal
+        title="Rechazar solicitud"
+        open={modalRechazarSolicitud}
+        onCancel={() => { setModalRechazarSolicitud(false); formRechazoSolicitud.resetFields() }}
+        footer={null}
+        width={500}
+      >
+        <Form form={formRechazoSolicitud} layout="vertical" onFinish={rechazarSolicitud}>
+          <Form.Item name="motivo_rechazo" label="Motivo del rechazo"
+            rules={[{ required: true, message: 'Ingresa el motivo del rechazo' },
+                    { min: 10, message: 'El motivo debe tener al menos 10 caracteres' }]}>
+            <Input.TextArea rows={3} placeholder="Describe la razón por la cual se rechaza la solicitud..." />
+          </Form.Item>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <Button onClick={() => { setModalRechazarSolicitud(false); formRechazoSolicitud.resetFields() }}>Cancelar</Button>
             <Button danger type="primary" htmlType="submit" loading={enviando}>
               Confirmar rechazo
             </Button>
