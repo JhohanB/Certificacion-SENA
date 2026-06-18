@@ -222,6 +222,37 @@ def template_observaciones_completas(nombre: str, programa: str, docs_observados
 
 
 # -------------------------------------------------------
+# Template: Observación informativa sin corrección
+
+def template_observacion_informativa(
+    nombre: str,
+    programa: str,
+    motivo: str,
+    nombre_funcionario: str,
+    correo_funcionario: str,
+    numero_documento: str = None,
+) -> str:
+    documento_info = f"<p><strong>Documento:</strong> {numero_documento}</p>" if numero_documento else ""
+    contenido = f"""
+        <h2>Observaciones del funcionario</h2>
+        <p>Hola <strong>{nombre}</strong>,</p>
+        <p>El funcionario de certificación registró observaciones sobre tu solicitud del programa <strong>{programa}</strong>.</p>
+        {documento_info}
+        <div class="alert-box">
+            <p><strong>Observación:</strong></p>
+            <p>{motivo}</p>
+        </div>
+        <div class="info-box">
+            <p>No es necesario corregir documentos desde el enlace de edición.</p>
+            <p>Comunícate con el funcionario para aclarar los detalles y los pasos a seguir.</p>
+            <p>👤 {nombre_funcionario}</p>
+            <p>📧 {correo_funcionario}</p>
+        </div>
+    """
+    return _base_template(contenido)
+    
+
+# -------------------------------------------------------
 # Template: Solicitud certificada
 # -------------------------------------------------------
 
@@ -301,22 +332,29 @@ def template_restablecer_password(nombre: str, correo: str, password_temporal: s
     return _base_template(contenido)
 
 
-def template_notificacion_rechazo_externo(nombre: str, programa: str, motivo: str, nombre_funcionario_rechazo: str, correo_funcionario_rechazo: str) -> str:
+def template_notificacion_rechazo_externo(
+    nombre: str,
+    programa: str,
+    motivo: str,
+    nombre_funcionario_rechazo: str,
+    correo_funcionario_rechazo: str,
+    numero_documento: str = None,
+) -> str:
+    documento_info = f"<p><strong>Documento:</strong> {numero_documento}</p>" if numero_documento else ""
     contenido = f"""
-        <h2>Notificación sobre tu solicitud</h2>
+        <h2>Tu solicitud fue rechazada</h2>
         <p>Hola <strong>{nombre}</strong>,</p>
-        <p>Tu solicitud del programa <strong>{programa}</strong> tiene una observación 
-        que no requiere corrección de documentos:</p>
+        <p>La solicitud del programa <strong>{programa}</strong> ha sido <strong>rechazada</strong>.</p>
+        {documento_info}
         <div class="alert-box">
-            <p><strong>⚠️ Observación:</strong></p>
+            <p><strong>⚠️ Motivo del rechazo:</strong></p>
             <p>{motivo}</p>
         </div>
         <div class="info-box">
-            <p><strong>Contacta al funcionario que realizó la observación:</strong></p>
+            <p><strong>Contacta al funcionario que realizó el rechazo:</strong></p>
             <p>👤 {nombre_funcionario_rechazo}</p>
             <p>📧 {correo_funcionario_rechazo}</p>
         </div>
-        <p>No es necesario que corrijas ningún documento. 
-        Comunícate con el funcionario para resolver este inconveniente.</p>
+        <p>Comunícate con el funcionario para aclarar los detalles y resolver el caso.</p>
     """
     return _base_template(contenido)
