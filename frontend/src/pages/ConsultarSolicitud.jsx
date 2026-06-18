@@ -12,6 +12,7 @@ const PASOS = [
   { estado: 'CORREGIDO', titulo: 'Corregido', descripcion: 'Enviaste las correcciones. El funcionario las está revisando.' },
   { estado: 'PENDIENTE_FIRMAS', titulo: 'En proceso de firmas', descripcion: 'Los funcionarios están firmando tu solicitud.' },
   { estado: 'PENDIENTE_CERTIFICACION', titulo: 'Pendiente certificación', descripcion: 'Todas las firmas completadas. Tu certificación está siendo procesada.' },
+  { estado: 'RECHAZADO', titulo: 'Rechazada', descripcion: 'La solicitud fue rechazada. Contacta al funcionario para más detalles.' },
   { estado: 'CERTIFICADO', titulo: '¡Certificado!', descripcion: '¡Felicitaciones! Tu proceso fue completado exitosamente.' },
 ]
 
@@ -63,8 +64,74 @@ export default function ConsultarSolicitud() {
     }
   }
 
+  const pasosVisibles = solicitud
+    ? PASOS.filter((paso) => {
+      if (
+        paso.estado === 'CON_OBSERVACIONES' &&
+        ![
+          'CON_OBSERVACIONES',
+          'CORREGIDO',
+          'PENDIENTE_FIRMAS',
+          'PENDIENTE_CERTIFICACION',
+          'CERTIFICADO'
+        ].includes(solicitud.estado_actual)
+      ) {
+        return false
+      }
+
+      if (
+        paso.estado === 'CORREGIDO' &&
+        ![
+          'CORREGIDO',
+          'PENDIENTE_FIRMAS',
+          'PENDIENTE_CERTIFICACION',
+          'CERTIFICADO'
+        ].includes(solicitud.estado_actual)
+      ) {
+        return false
+      }
+
+      if (
+        paso.estado === 'PENDIENTE_FIRMAS' &&
+        ![
+          'PENDIENTE_FIRMAS',
+          'PENDIENTE_CERTIFICACION',
+          'CERTIFICADO'
+        ].includes(solicitud.estado_actual)
+      ) {
+        return false
+      }
+
+      if (
+        paso.estado === 'PENDIENTE_CERTIFICACION' &&
+        ![
+          'PENDIENTE_CERTIFICACION',
+          'CERTIFICADO'
+        ].includes(solicitud.estado_actual)
+      ) {
+        return false
+      }
+
+      if (
+        paso.estado === 'RECHAZADO' &&
+        solicitud.estado_actual !== 'RECHAZADO'
+      ) {
+        return false
+      }
+
+      if (
+        paso.estado === 'CERTIFICADO' &&
+        solicitud.estado_actual !== 'CERTIFICADO'
+      ) {
+        return false
+      }
+
+      return true
+    })
+    : []
+
   const indiceActual = solicitud
-    ? PASOS.findIndex(p => p.estado === solicitud.estado_actual)
+    ? pasosVisibles.findIndex(p => p.estado === solicitud.estado_actual)
     : 0
 
   return (
@@ -361,6 +428,41 @@ export default function ConsultarSolicitud() {
                     return null
                   }
 
+                  if (
+                    paso.estado === 'PENDIENTE_FIRMAS' &&
+                    ![
+                      'PENDIENTE_FIRMAS',
+                      'PENDIENTE_CERTIFICACION',
+                      'CERTIFICADO'
+                    ].includes(solicitud.estado_actual)
+                  ) {
+                    return null
+                  }
+
+                  if (
+                    paso.estado === 'PENDIENTE_CERTIFICACION' &&
+                    ![
+                      'PENDIENTE_CERTIFICACION',
+                      'CERTIFICADO'
+                    ].includes(solicitud.estado_actual)
+                  ) {
+                    return null
+                  }
+
+                  if (
+                    paso.estado === 'RECHAZADO' &&
+                    solicitud.estado_actual !== 'RECHAZADO'
+                  ) {
+                    return null
+                  }
+
+                  if (
+                    paso.estado === 'CERTIFICADO' &&
+                    solicitud.estado_actual !== 'CERTIFICADO'
+                  ) {
+                    return null
+                  }
+
                   return {
                     title: paso.titulo,
                     content:
@@ -371,7 +473,7 @@ export default function ConsultarSolicitud() {
                       i < indiceActual
                         ? 'finish'
                         : i === indiceActual
-                        ? solicitud.estado_actual === 'CON_OBSERVACIONES'
+                        ? ['CON_OBSERVACIONES', 'RECHAZADO'].includes(solicitud.estado_actual)
                           ? 'error'
                           : 'process'
                         : 'wait'
@@ -424,16 +526,24 @@ export default function ConsultarSolicitud() {
             </>
           )}
 
-          {/* Observaciones */}
+          {/* Observaciones y motivos */}
           {solicitud.observaciones_generales &&
             solicitud.estado_actual !== 'CERTIFICADO' && (
               <>
                 <Divider />
 
                 <Alert
-                  message="Observaciones del funcionario"
+                  message={
+                    solicitud.estado_actual === 'RECHAZADO'
+                      ? 'Motivo del rechazo'
+                      : 'Observaciones del funcionario'
+                  }
                   description={solicitud.observaciones_generales}
-                  type="warning"
+                  type={
+                    solicitud.estado_actual === 'RECHAZADO'
+                      ? 'error'
+                      : 'warning'
+                  }
                   showIcon
                   style={{
                     borderRadius: 12
