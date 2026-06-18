@@ -14,10 +14,11 @@ const { RangePicker } = DatePicker
 
 const COLORES_ESTADO = {
   PENDIENTE_REVISION: '#faad14',
-  CON_OBSERVACIONES: '#ff4d4f',
+  CON_OBSERVACIONES: '#fa8c16',
   CORREGIDO: '#1677ff',
   PENDIENTE_FIRMAS: '#722ed1',
   PENDIENTE_CERTIFICACION: '#13c2c2',
+  RECHAZADO: '#ff4d4f',
   CERTIFICADO: '#52c41a',
 }
 
@@ -27,6 +28,7 @@ const TEXTOS_ESTADO = {
   CORREGIDO: 'Corregido',
   PENDIENTE_FIRMAS: 'Pend. Firmas',
   PENDIENTE_CERTIFICACION: 'Pend. Cert.',
+  RECHAZADO: 'Rechazado',
   CERTIFICADO: 'Certificado',
 }
 
