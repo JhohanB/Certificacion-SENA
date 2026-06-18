@@ -33,7 +33,7 @@ def obtener_solicitudes_certificadas_sin_docs_eliminados(db: Session, solicitud_
             LEFT JOIN solicitud_documentos sd ON sd.solicitud_id = s.id 
                 AND sd.es_version_activa = TRUE
             WHERE s.id IN ({','.join([':id_' + str(i) for i in range(len(solicitud_ids))])})
-            AND s.estado_actual = 'CERTIFICADO'
+            AND s.estado_actual IN ('CERTIFICADO','RECHAZADO')
             AND s.documentos_eliminados = FALSE
             GROUP BY s.id, s.numero_documento, s.numero_ficha, s.nombre_aprendiz, s.estado_actual, s.documentos_eliminados
             HAVING COUNT(sd.id) > 0
