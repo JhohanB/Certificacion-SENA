@@ -15,15 +15,17 @@ const ESTADOS = [
   { value: 'CORREGIDO', label: 'Corregido' },
   { value: 'PENDIENTE_FIRMAS', label: 'Pendiente de firmas' },
   { value: 'PENDIENTE_CERTIFICACION', label: 'Pendiente de certificación' },
+  { value: 'RECHAZADO', label: 'Rechazado' },
   { value: 'CERTIFICADO', label: 'Certificado' },
 ]
 
 const COLORES_ESTADO = {
-  PENDIENTE_REVISION: 'orange',
-  CON_OBSERVACIONES: 'red',
+  PENDIENTE_REVISION: 'gold',
+  CON_OBSERVACIONES: 'orange',
   CORREGIDO: 'blue',
   PENDIENTE_FIRMAS: 'purple',
   PENDIENTE_CERTIFICACION: 'cyan',
+  RECHAZADO: 'red',
   CERTIFICADO: 'green',
 }
 
@@ -33,6 +35,7 @@ const TEXTOS_ESTADO = {
   CORREGIDO: 'Corregido',
   PENDIENTE_FIRMAS: 'Pendiente firmas',
   PENDIENTE_CERTIFICACION: 'Pendiente certificación',
+  RECHAZADO: 'Rechazado',
   CERTIFICADO: 'Certificado',
 }
 
@@ -180,7 +183,7 @@ export default function Solicitudes() {
 
     return lista.filter(
       s =>
-        s.estado_actual === 'CERTIFICADO' &&
+        (s.estado_actual === 'CERTIFICADO' || s.estado_actual === 'RECHAZADO') &&
         !s.documentos_eliminados
     )
   }, [agrupar, solicitudesAgrupadas, solicitudesFiltradas])
@@ -188,7 +191,7 @@ export default function Solicitudes() {
   const solicitudesEliminables = useMemo(() => {
     return solicitudesFiltradas.filter(
       s =>
-        s.estado_actual === 'CERTIFICADO' &&
+        (s.estado_actual === 'CERTIFICADO' || s.estado_actual === 'RECHAZADO') &&
         !s.documentos_eliminados
     )
   }, [solicitudesFiltradas])
@@ -333,7 +336,7 @@ export default function Solicitudes() {
     },
     getCheckboxProps: (record) => ({
       disabled: !(
-        record.estado_actual === 'CERTIFICADO' &&
+        (record.estado_actual === 'CERTIFICADO' || record.estado_actual === 'RECHAZADO') &&
         !record.documentos_eliminados
       )
     })
