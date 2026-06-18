@@ -886,23 +886,28 @@ def marcar_solicitud_corregida(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"La solicitud no está en estado CON_OBSERVACIONES. Estado actual: {solicitud['estado_actual']}"
         )
-    
-    # Verificar que existe una firma rechazada con tipo_rechazo = POR_OTRA_RAZON
-    firma_rechazo = db.execute(text("""
-        SELECT id, tipo_rechazo, motivo_rechazo
-        FROM firmas
-        WHERE solicitud_id = :solicitud_id 
-        AND estado_firma = 'RECHAZADO'
-        AND tipo_rechazo = 'POR_OTRA_RAZON'
-        ORDER BY fecha_firma DESC
-        LIMIT 1
-    """), {"solicitud_id": solicitud_id}).mappings().first()
-    
-    if not firma_rechazo:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No hay un rechazo de firma por 'POR_OTRA_RAZON' en esta solicitud"
-        )
+
+        from app.crud.documentos import get_documentos_observados
+    docs_observados = list(get_documentos_observados(db, solicitud_id))
+
+    # Solo validar firma rechazada si hay documentos observados
+    if docs_observados:
+        # Verificar que existe una firma rechazada con tipo_rechazo = POR_OTRA_RAZON
+        firma_rechazo = db.execute(text("""
+            SELECT id, tipo_rechazo, motivo_rechazo
+            FROM firmas
+            WHERE solicitud_id = :solicitud_id 
+            AND estado_firma = 'RECHAZADO'
+            AND tipo_rechazo = 'POR_OTRA_RAZON'
+            ORDER BY fecha_firma DESC
+            LIMIT 1
+        """), {"solicitud_id": solicitud_id}).mappings().first()
+
+        if not firma_rechazo:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No hay un rechazo de firma por 'POR_OTRA_RAZON' en esta solicitud"
+            )
     
     # Limpiar observaciones_generales al igual que cuando se quitan
     db.execute(text("""
