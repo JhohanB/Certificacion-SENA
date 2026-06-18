@@ -134,6 +134,32 @@ async def enviar_observaciones_completas(
     )
 
 
+async def enviar_observacion_informativa(
+    correo: str,
+    nombre: str,
+    programa: str,
+    motivo: str,
+    nombre_funcionario: str,
+    correo_funcionario: str,
+    numero_documento: str = None,
+    solicitud_id: int = None,
+    db=None,
+) -> None:
+    from app.utils.email_templates import template_observacion_informativa
+    html = template_observacion_informativa(
+        nombre=nombre,
+        programa=programa,
+        motivo=motivo,
+        numero_documento=numero_documento,
+        nombre_funcionario=nombre_funcionario,
+        correo_funcionario=correo_funcionario,
+    )
+    await _enviar(
+        correo, "SENA - Observaciones sobre tu solicitud", html,
+        solicitud_id=solicitud_id, tipo_notificacion="OBSERVACION_INFORMATIVA", db=db
+    )
+
+
 async def enviar_certificacion_completada(
     correo: str,
     nombre: str,
@@ -163,12 +189,15 @@ async def enviar_notificacion_rechazo_externo(
 ) -> None:
     from app.utils.email_templates import template_notificacion_rechazo_externo
     html = template_notificacion_rechazo_externo(
-        nombre=nombre, programa=programa, motivo=motivo, numero_documento=numero_documento,
+        nombre=nombre,
+        programa=programa,
+        motivo=motivo,
+        numero_documento=numero_documento,
         nombre_funcionario_rechazo=nombre_funcionario_rechazo,
         correo_funcionario_rechazo=correo_funcionario_rechazo
     )
     await _enviar(
-        correo, "SENA - Notificación sobre tu solicitud", html,
+        correo, "SENA - Tu solicitud fue rechazada", html,
         solicitud_id=solicitud_id, tipo_notificacion="NOTIFICACION_RECHAZO_EXTERNO", db=db
     )
 
