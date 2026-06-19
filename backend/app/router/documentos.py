@@ -543,7 +543,7 @@ def descargar_pdf(
     else:
         ruta_local = pdf_url
 
-    nombre_archivo = f"PAZ Y SALVO {solicitud['numero_documento']} {solicitud['nombre_aprendiz']}.pdf"
+    nombre_archivo = f"PAZ Y SALVO {solicitud['numero_documento']} {solicitud['nombre_aprendiz'].upper()}.pdf"
     nombre_encoded = urllib.parse.quote(nombre_archivo)
 
     return FileResponse(
@@ -607,7 +607,7 @@ def descargar_certificados_zip(
             else:
                 ruta_local = ruta_pdf
 
-            nombre_pdf = f"Certificado {fila['numero_documento']} {fila['nombre_aprendiz']}.pdf"
+            nombre_pdf = f"PAZ Y SALVO {fila['numero_documento']} {fila['nombre_aprendiz'].upper()}.pdf"
             zf.write(ruta_local, arcname=nombre_pdf)
             archivos_agregados += 1
 
